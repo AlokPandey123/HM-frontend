@@ -36,7 +36,7 @@ export function Login() {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-teal-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">ðŸ¥</div>
-          <h1 className="text-2xl font-bold text-slate-900">HMS Staff Portal</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Sunrise IVF Center Staff Portal</h1>
           <p className="text-slate-500 text-sm mt-1">Hospital Management System</p>
         </div>
 
@@ -52,7 +52,7 @@ export function Login() {
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-              placeholder="staff@hms.com"
+              placeholder="staff@sunriseivf.com"
               required
             />
           </div>

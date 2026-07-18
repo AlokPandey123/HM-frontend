@@ -21,22 +21,22 @@ interface AuthState {
   hasPermission: (module: string, action: string) => boolean;
 }
 
-const stored = localStorage.getItem('hms_token');
-const storedUser = localStorage.getItem('hms_user');
+const stored = localStorage.getItem('sunriseivf_token');
+const storedUser = localStorage.getItem('sunriseivf_user');
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: storedUser ? JSON.parse(storedUser) : null,
   token: stored,
 
   login: (user, token) => {
-    localStorage.setItem('hms_token', token);
-    localStorage.setItem('hms_user', JSON.stringify(user));
+    localStorage.setItem('sunriseivf_token', token);
+    localStorage.setItem('sunriseivf_user', JSON.stringify(user));
     set({ user, token });
   },
 
   logout: () => {
-    localStorage.removeItem('hms_token');
-    localStorage.removeItem('hms_user');
+    localStorage.removeItem('sunriseivf_token');
+    localStorage.removeItem('sunriseivf_user');
     set({ user: null, token: null });
   },
 

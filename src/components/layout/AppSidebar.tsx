@@ -47,7 +47,7 @@ export function AppSidebar() {
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="text-white font-bold text-sm leading-tight tracking-wide">HMS Staff</p>
+          <p className="text-white font-bold text-sm leading-tight tracking-wide">Sunrise IVF Center</p>
           <p className="text-teal-300/70 text-xs mt-0.5">Staff Portal</p>
         </div>
       </div>

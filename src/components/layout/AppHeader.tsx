@@ -23,7 +23,7 @@ export function AppHeader() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const pageLabel = routeLabels[location.pathname] ?? 'HMS Staff';
+  const pageLabel = routeLabels[location.pathname] ?? 'Sunrise IVF Center';
   const role = roleConfig[user?.role ?? 'manager'];
   const initials = (user?.name ?? 'U').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
@@ -31,7 +31,7 @@ export function AppHeader() {
     <header className="bg-white border-b border-slate-100 px-6 h-16 flex items-center justify-between shrink-0 shadow-sm">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-slate-400 font-medium">HMS Staff</span>
+        <span className="text-slate-400 font-medium">Sunrise IVF Center</span>
         <ChevronRight size={14} className="text-slate-300" />
         <span className="text-slate-800 font-semibold">{pageLabel}</span>
       </div>

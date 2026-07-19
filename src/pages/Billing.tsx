@@ -19,7 +19,6 @@ const MODE_ICONS = { cash: Banknote, card: CreditCard, upi: Smartphone, insuranc
 
 export function Billing() {
   const [bills, setBills] = useState<Bill[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -30,6 +29,11 @@ export function Billing() {
   const [items, setItems] = useState<Item[]>([]);
   const [medSearch, setMedSearch] = useState('');
   const [filteredMeds, setFilteredMeds] = useState<Medicine[]>([]);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientOpen, setPatientOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [patientResults, setPatientResults] = useState<Patient[]>([]);
+  const [patientLoading, setPatientLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -39,11 +43,7 @@ export function Billing() {
       setTotal(bRes.data.data.total);
     } finally { setLoading(false); }
     try {
-      const [pRes, mRes] = await Promise.all([
-        api.get('/patients', { params: { all: true } }),
-        api.get('/medicine', { params: { all: true } }),
-      ]);
-      setPatients(Array.isArray(pRes.data.data) ? pRes.data.data : []);
+      const mRes = await api.get('/medicine', { params: { all: true } });
       setMedicines(Array.isArray(mRes.data.data) ? mRes.data.data : []);
     } catch { /* form data only — ok to fail */ }
   };
@@ -52,6 +52,26 @@ export function Billing() {
   useEffect(() => {
     setFilteredMeds(medSearch ? medicines.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())) : []);
   }, [medSearch, medicines]);
+  useEffect(() => {
+    if (!patientSearch) { setPatientResults([]); return; }
+    const timer = setTimeout(async () => {
+      setPatientLoading(true);
+      try {
+        const res = await api.get('/patients', { params: { search: patientSearch, limit: 10 } });
+        setPatientResults(res.data.data.patients || []);
+      } catch { setPatientResults([]); }
+      finally { setPatientLoading(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [patientSearch]);
+
+  const closeModal = () => {
+    setModal(false);
+    setItems([]);
+    setSelectedPatient(null);
+    setPatientSearch('');
+    setPatientResults([]);
+  };
 
   const addMedicine = (med: Medicine) => {
     const exists = items.find(i => i.referenceId === med._id);
@@ -71,25 +91,28 @@ export function Billing() {
 
   const handleSave = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    if (!billForm.patient) { alert('Please select a patient'); return; }
     if (items.length === 0) { alert('Add at least one medicine'); return; }
     setSaving(true);
     const snapItems = items;
     const snapForm = billForm;
     const snapSubtotal = subtotal;
     const snapTotal = totalAmount;
+    const snapPatient = selectedPatient;
     try {
       const billItems = snapItems.map(i => ({ itemType: 'medicine', referenceId: i.referenceId, name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, discount: 0, tax: 0, total: i.total }));
       const res = await api.post('/billing', { ...snapForm, items: billItems, discount: Number(snapForm.discount || 0), tax: Number(snapForm.tax || 0), amountPaid: Number(snapForm.amountPaid || 0) });
       const created = res.data?.data?.bill || res.data?.data;
-      const patient = patients.find(p => p._id === snapForm.patient);
       setModal(false);
       setItems([]);
       setBillForm({ patient: '', paymentStatus: 'pending', paymentMode: 'cash', amountPaid: '', discount: '', tax: '', notes: '' });
+      setSelectedPatient(null);
+      setPatientSearch('');
       load();
       printInvoice({
         billId: created?.billId || 'N/A',
         createdAt: created?.createdAt || new Date().toISOString(),
-        patient: { name: patient?.name || '', patientId: patient?.patientId || '' },
+        patient: { name: snapPatient?.name || '', patientId: snapPatient?.patientId || '' },
         items: snapItems.map(i => ({ name: i.name, quantity: i.quantity, unitPrice: i.unitPrice, total: i.total })),
         subtotal: snapSubtotal,
         discount: Number(snapForm.discount || 0),
@@ -214,17 +237,42 @@ export function Billing() {
         </div>
       </div>
 
-      <Modal isOpen={modal} onClose={() => { setModal(false); setItems([]); }} title="Create Medicine Bill" size="xl">
+      <Modal isOpen={modal} onClose={closeModal} title="Create Medicine Bill" size="xl">
         <form onSubmit={handleSave} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
-            <div>
+
+            {/* Searchable patient combobox */}
+            <div className="relative">
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Patient</label>
-              <select value={billForm.patient} onChange={(e) => setBillForm({ ...billForm, patient: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" required>
-                <option value="">Select Patient</option>
-                {patients.map(p => <option key={p._id} value={p._id}>{p.name} ({p.patientId})</option>)}
-              </select>
+              <div className="relative">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  value={patientSearch !== '' ? patientSearch : (selectedPatient ? `${selectedPatient.name} (${selectedPatient.patientId})` : '')}
+                  onFocus={() => setPatientOpen(true)}
+                  onChange={(e) => { setPatientSearch(e.target.value); setPatientOpen(true); setSelectedPatient(null); setBillForm(f => ({ ...f, patient: '' })); }}
+                  onBlur={() => setTimeout(() => setPatientOpen(false), 150)}
+                  placeholder="Search patient by name or ID…"
+                  className={`w-full border rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors ${selectedPatient ? 'border-teal-300' : 'border-slate-200'}`}
+                />
+              </div>
+              {patientOpen && (patientLoading || patientResults.length > 0) && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto mt-1">
+                  {patientLoading ? (
+                    <div className="px-4 py-3 flex items-center justify-center gap-2 text-sm text-slate-400">
+                      <Loader2 size={14} className="animate-spin" /> Searching…
+                    </div>
+                  ) : patientResults.map(p => (
+                    <button key={p._id} type="button"
+                      onMouseDown={() => { setBillForm(f => ({ ...f, patient: p._id })); setSelectedPatient(p); setPatientSearch(''); setPatientOpen(false); setPatientResults([]); }}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-teal-50 border-b border-slate-50 last:border-0 transition-colors flex justify-between items-center">
+                      <span className="font-medium text-slate-800">{p.name}</span>
+                      <span className="text-xs text-slate-400 font-mono">{p.patientId}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+
             <div className="relative">
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Search & Add Medicine</label>
               <div className="relative">
@@ -320,7 +368,7 @@ export function Billing() {
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Receipt size={16} />}
               {saving ? 'Creating…' : `Create Bill — ₹${totalAmount.toFixed(2)}`}
             </button>
-            <button type="button" onClick={() => { setModal(false); setItems([]); }}
+            <button type="button" onClick={closeModal}
               className="px-6 border border-slate-200 py-3 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
           </div>
         </form>

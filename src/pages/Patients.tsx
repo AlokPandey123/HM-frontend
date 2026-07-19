@@ -3,10 +3,10 @@ import { Search, UserPlus, Pencil, Users, Loader2 } from 'lucide-react';
 import api from '../api/axios';
 import { Modal } from '../components/Modal';
 
-interface Patient { _id: string; patientId: string; name: string; age: number; gender: string; phone: string; bloodGroup: string; city?: { name: string }; }
+interface Patient { _id: string; patientId: string; name: string; age: number; gender: string; phone: string; address?: string; city?: { name: string }; marriageYear?: number; }
 interface City { _id: string; name: string; state: string; }
 
-const empty = { name: '', age: '', gender: 'male', phone: '', email: '', address: '', city: '', bloodGroup: '', emergencyContact: '' };
+const empty = { name: '', age: '', gender: 'male', phone: '', city: '', address: '', marriageYear: '' };
 
 const genderBadge: Record<string, string> = {
   male: 'bg-blue-50 text-blue-700',
@@ -44,7 +44,7 @@ export function Patients() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = { ...form, age: Number(form.age) };
+      const payload = { ...form, age: Number(form.age), marriageYear: form.marriageYear ? Number(form.marriageYear) : undefined };
       if (editId) await api.put(`/patients/${editId}`, payload);
       else await api.post('/patients', payload);
       setModal(false);
@@ -56,7 +56,7 @@ export function Patients() {
   };
 
   const openEdit = (p: Patient) => {
-    setForm({ name: p.name, age: String(p.age), gender: p.gender, phone: p.phone, email: '', address: '', city: '', bloodGroup: p.bloodGroup || '', emergencyContact: '' });
+    setForm({ name: p.name, age: String(p.age), gender: p.gender, phone: p.phone, city: '', address: p.address || '', marriageYear: p.marriageYear ? String(p.marriageYear) : '' });
     setEditId(p._id);
     setModal(true);
   };
@@ -98,18 +98,18 @@ export function Patients() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              {['Patient ID', 'Name', 'Age', 'Gender', 'Phone', 'Blood', 'City', ''].map(h => (
+              {['Patient ID', 'Patient Name', 'Age', 'Gender', 'Phone', 'City', 'Address', 'Marriage Yr', ''].map(h => (
                 <th key={h} className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {loading ? (
-              <tr><td colSpan={8} className="py-12 text-center">
+              <tr><td colSpan={9} className="py-12 text-center">
                 <Loader2 size={24} className="animate-spin text-teal-500 mx-auto" />
               </td></tr>
             ) : patients.length === 0 ? (
-              <tr><td colSpan={8} className="py-12 text-center text-slate-400">
+              <tr><td colSpan={9} className="py-12 text-center text-slate-400">
                 <Users size={32} className="mx-auto mb-2 opacity-30" />
                 No patients found
               </td></tr>
@@ -124,10 +124,9 @@ export function Patients() {
                   <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize ${genderBadge[p.gender] ?? 'bg-slate-100 text-slate-600'}`}>{p.gender}</span>
                 </td>
                 <td className="px-4 py-3.5 text-slate-600">{p.phone}</td>
-                <td className="px-4 py-3.5">
-                  {p.bloodGroup ? <span className="text-xs font-bold bg-red-50 text-red-600 px-2 py-1 rounded-lg">{p.bloodGroup}</span> : <span className="text-slate-300">—</span>}
-                </td>
                 <td className="px-4 py-3.5 text-slate-500">{p.city?.name || <span className="text-slate-300">—</span>}</td>
+                <td className="px-4 py-3.5 text-slate-500 max-w-[160px] truncate">{p.address || <span className="text-slate-300">—</span>}</td>
+                <td className="px-4 py-3.5 text-slate-500">{p.marriageYear || <span className="text-slate-300">—</span>}</td>
                 <td className="px-4 py-3.5">
                   <button
                     onClick={() => openEdit(p)}
@@ -145,18 +144,16 @@ export function Patients() {
       {/* Modal */}
       <Modal isOpen={modal} onClose={() => setModal(false)} title={editId ? 'Edit Patient' : 'Register New Patient'} size="lg">
         <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
-          {[
-            { f: 'name', l: 'Full Name', t: 'text', req: true },
-            { f: 'phone', l: 'Phone Number', t: 'tel', req: true },
-            { f: 'email', l: 'Email Address', t: 'email', req: false },
-            { f: 'emergencyContact', l: 'Emergency Contact', t: 'tel', req: false },
-          ].map(({ f, l, t, req }) => (
-            <div key={f}>
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">{l}</label>
-              <input type={t} value={(form as Record<string, string>)[f]} onChange={(e) => setForm({ ...form, [f]: e.target.value })}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required={req} />
-            </div>
-          ))}
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Patient Name</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Phone Number</label>
+            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required />
+          </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Age</label>
             <input type="number" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })}
@@ -165,16 +162,8 @@ export function Patients() {
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Gender</label>
             <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" required>
               {['male', 'female', 'other'].map(g => <option key={g} value={g} className="capitalize">{g}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Blood Group</label>
-            <select value={form.bloodGroup} onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
-              <option value="">Select</option>
-              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g}>{g}</option>)}
             </select>
           </div>
           <div>
@@ -184,6 +173,11 @@ export function Patients() {
               <option value="">Select City</option>
               {cities.map(c => <option key={c._id} value={c._id}>{c.name}, {c.state}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Marriage Year</label>
+            <input type="number" value={form.marriageYear} onChange={(e) => setForm({ ...form, marriageYear: e.target.value })}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" min="1900" max={new Date().getFullYear()} placeholder="e.g. 2018" />
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Address</label>

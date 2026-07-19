@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Plus, Stethoscope, Clock, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Stethoscope, Clock, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import api from '../api/axios';
 import { Modal } from '../components/Modal';
 
-interface OPD { _id: string; opdId: string; patient: { name: string; patientId: string }; doctor: string; visitDate: string; fees: number; paymentStatus: string; diagnosis: string; }
+interface OPD { _id: string; opdId: string; patient: { name: string; patientId: string }; doctor: string; visitDate: string; fees: number; paymentStatus: string; }
 interface Patient { _id: string; name: string; patientId: string; }
 
 const statusConfig: Record<string, { label: string; class: string; icon: typeof CheckCircle }> = {
@@ -12,17 +12,22 @@ const statusConfig: Record<string, { label: string; class: string; icon: typeof 
   partial: { label: 'Partial', class: 'bg-orange-50 text-orange-700 border-orange-200',   icon: AlertCircle },
 };
 
-const empty = { patient: '', doctor: '', visitDate: new Date().toISOString().split('T')[0], symptoms: '', diagnosis: '', prescription: '', fees: '', paymentStatus: 'pending', paymentMode: 'cash', amountPaid: '', notes: '' };
+const empty = { patient: '', doctor: 'Dr. ', visitDate: new Date().toISOString().split('T')[0], fees: '', paymentStatus: 'pending', paymentMode: 'cash', amountPaid: '', notes: '' };
 
 export function OPD() {
   const [opds, setOpds] = useState<OPD[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({ ...empty });
   const [saving, setSaving] = useState(false);
+
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientOpen, setPatientOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [patientResults, setPatientResults] = useState<Patient[]>([]);
+  const [patientLoading, setPatientLoading] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -31,20 +36,39 @@ export function OPD() {
       setOpds(oRes.data.data.opds);
       setTotal(oRes.data.data.total);
     } finally { setLoading(false); }
-    try {
-      const pRes = await api.get('/patients', { params: { all: true } });
-      setPatients(Array.isArray(pRes.data.data) ? pRes.data.data : []);
-    } catch { /* form data only */ }
   };
 
   useEffect(() => { load(); }, [page]);
 
+  useEffect(() => {
+    if (!patientSearch.trim()) { setPatientResults([]); return; }
+    setPatientLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await api.get('/patients', { params: { search: patientSearch, limit: 10 } });
+        const data = res.data.data;
+        setPatientResults(Array.isArray(data) ? data : data.patients ?? []);
+      } finally { setPatientLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [patientSearch]);
+
+  const closeModal = () => {
+    setModal(false);
+    setForm({ ...empty });
+    setPatientSearch('');
+    setSelectedPatient(null);
+    setPatientResults([]);
+    setPatientOpen(false);
+  };
+
   const handleSave = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    if (!form.patient) { alert('Please select a patient'); return; }
     setSaving(true);
     try {
-      await api.post('/opd', { ...form, fees: Number(form.fees), amountPaid: Number(form.amountPaid || 0) });
-      setModal(false);
+      await api.post('/opd', { ...form, fees: Number(form.fees), amountPaid: Number(form.amountPaid) });
+      closeModal();
       load();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -75,18 +99,18 @@ export function OPD() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              {['OPD ID', 'Patient', 'Doctor', 'Date', 'Fees', 'Payment', 'Diagnosis'].map(h => (
+              {['OPD ID', 'Patient', 'Doctor', 'Date', 'Fees', 'Payment'].map(h => (
                 <th key={h} className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {loading ? (
-              <tr><td colSpan={7} className="py-12 text-center">
+              <tr><td colSpan={6} className="py-12 text-center">
                 <Loader2 size={24} className="animate-spin text-teal-500 mx-auto" />
               </td></tr>
             ) : opds.length === 0 ? (
-              <tr><td colSpan={7} className="py-12 text-center text-slate-400">
+              <tr><td colSpan={6} className="py-12 text-center text-slate-400">
                 <Stethoscope size={32} className="mx-auto mb-2 opacity-30" />
                 No OPD records found
               </td></tr>
@@ -110,7 +134,6 @@ export function OPD() {
                       <StatusIcon size={11} /> {status.label}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 text-slate-500 max-w-[160px] truncate">{o.diagnosis || <span className="text-slate-300">—</span>}</td>
                 </tr>
               );
             })}
@@ -118,7 +141,6 @@ export function OPD() {
         </table>
       </div>
 
-      {/* Pagination */}
       <div className="flex items-center justify-between mt-4 px-1">
         <p className="text-sm text-slate-400">Showing {total === 0 ? 0 : Math.min((page-1)*20+1, total)}–{Math.min(page*20, total)} of {total}</p>
         <div className="flex gap-2">
@@ -134,60 +156,81 @@ export function OPD() {
         </div>
       </div>
 
-      <Modal isOpen={modal} onClose={() => setModal(false)} title="New OPD Visit" size="lg">
+      <Modal isOpen={modal} onClose={closeModal} title="New OPD Visit" size="lg">
         <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Patient</label>
-            <select value={form.patient} onChange={(e) => f('patient', e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" required>
-              <option value="">Select Patient</option>
-              {patients.map(p => <option key={p._id} value={p._id}>{p.name} ({p.patientId})</option>)}
-            </select>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Patient <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                value={selectedPatient ? `${selectedPatient.name} (${selectedPatient.patientId})` : patientSearch}
+                onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null); setForm(prev => ({ ...prev, patient: '' })); }}
+                onFocus={() => setPatientOpen(true)}
+                onBlur={() => setTimeout(() => setPatientOpen(false), 150)}
+                placeholder="Search patient by name or ID…"
+                className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors"
+                autoComplete="off"
+              />
+              {patientOpen && (patientLoading || patientResults.length > 0) && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto mt-1">
+                  {patientLoading ? (
+                    <div className="flex items-center gap-2 px-4 py-3 text-sm text-slate-500">
+                      <Loader2 size={14} className="animate-spin" /> Searching…
+                    </div>
+                  ) : patientResults.map((p) => (
+                    <button key={p._id} type="button" onMouseDown={() => {
+                      setForm(prev => ({ ...prev, patient: p._id }));
+                      setSelectedPatient(p);
+                      setPatientSearch('');
+                      setPatientOpen(false);
+                      setPatientResults([]);
+                    }} className="w-full text-left px-4 py-2.5 hover:bg-teal-50 flex items-center justify-between gap-2 text-sm">
+                      <span className="font-medium text-slate-800">{p.name}</span>
+                      <span className="text-xs text-slate-400 font-mono">{p.patientId}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Doctor Name</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Doctor Name <span className="text-red-500">*</span></label>
             <input value={form.doctor} onChange={(e) => f('doctor', e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Visit Date</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Visit Date <span className="text-red-500">*</span></label>
             <input type="date" value={form.visitDate} onChange={(e) => f('visitDate', e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required />
           </div>
-          {[
-            { field: 'symptoms', label: 'Symptoms' },
-            { field: 'diagnosis', label: 'Diagnosis' },
-            { field: 'prescription', label: 'Prescription' },
-          ].map(({ field, label }) => (
-            <div key={field} className="col-span-2">
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">{label}</label>
-              <textarea value={(form as Record<string, string>)[field]} onChange={(e) => f(field, e.target.value)} rows={2}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white resize-none transition-colors" />
-            </div>
-          ))}
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Consultation Fees (₹)</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Consultation Fees (₹) <span className="text-red-500">*</span></label>
             <input type="number" value={form.fees} onChange={(e) => f('fees', e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required min="0" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Amount Paid (₹)</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Amount Paid (₹) <span className="text-red-500">*</span></label>
             <input type="number" value={form.amountPaid} onChange={(e) => f('amountPaid', e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" min="0" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required min="0" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Payment Status</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Payment Status <span className="text-red-500">*</span></label>
             <select value={form.paymentStatus} onChange={(e) => f('paymentStatus', e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" required>
               {['pending', 'paid', 'partial'].map(s => <option key={s} value={s} className="capitalize">{s}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Payment Mode</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Payment Mode <span className="text-red-500">*</span></label>
             <select value={form.paymentMode} onChange={(e) => f('paymentMode', e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50">
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50" required>
               {['cash', 'card', 'upi', 'insurance', 'online'].map(m => <option key={m} value={m} className="capitalize">{m}</option>)}
             </select>
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Notes</label>
+            <textarea value={form.notes} onChange={(e) => f('notes', e.target.value)} rows={2}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white resize-none transition-colors" placeholder="Additional notes..." />
           </div>
           <div className="col-span-2 flex gap-3 pt-1">
             <button type="submit" disabled={saving}
@@ -195,7 +238,7 @@ export function OPD() {
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Stethoscope size={16} />}
               {saving ? 'Saving…' : 'Save OPD Record'}
             </button>
-            <button type="button" onClick={() => setModal(false)}
+            <button type="button" onClick={closeModal}
               className="flex-1 border border-slate-200 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
           </div>
         </form>

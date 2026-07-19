@@ -98,7 +98,7 @@ export function Patients() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
-              {['Patient ID', 'Patient Name', 'Age', 'Gender', 'Phone', 'City', 'Address', 'Marriage Yr', ''].map(h => (
+              {['Patient ID', 'Patient Name', 'Age', 'Gender', 'Phone', 'City', 'Address', 'Married Yrs', ''].map(h => (
                 <th key={h} className="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -175,9 +175,9 @@ export function Patients() {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Marriage Year</label>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Years Married</label>
             <input type="number" value={form.marriageYear} onChange={(e) => setForm({ ...form, marriageYear: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" min="1900" max={new Date().getFullYear()} placeholder="e.g. 2018" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" min="1" placeholder="e.g. 5" />
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Address</label>

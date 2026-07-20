@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Users, Hospital, FlaskConical, IndianRupee, AlertTriangle,
   UserPlus, Stethoscope, TestTube, Receipt, TrendingUp, ArrowUpRight,
+  ClipboardList, CreditCard,
 } from 'lucide-react';
 import api from '../api/axios';
 import { useAuthStore } from '../store/authStore';
@@ -13,6 +14,7 @@ interface Stats {
   billing: { total: number; todayRevenue: number };
   tests: { pending: number; completed: number };
   medicine: { lowStock: number };
+  regularCheckups: { total: number; today: number; feeApplicable: number; totalRevenue: number };
 }
 
 export function Home() {
@@ -56,6 +58,16 @@ export function Home() {
       sub: 'medicines below minimum',
       icon: AlertTriangle, gradient: 'from-orange-400 to-rose-500', to: '/medicine',
     },
+    {
+      label: 'Regular Checkups', value: stats?.regularCheckups.total ?? 0,
+      sub: `+${stats?.regularCheckups.today ?? 0} today`,
+      icon: ClipboardList, gradient: 'from-sky-500 to-cyan-600', to: '/regular-checkup',
+    },
+    {
+      label: 'Checkup Revenue', value: `₹${(stats?.regularCheckups.totalRevenue ?? 0).toLocaleString('en-IN')}`,
+      sub: `${stats?.regularCheckups.feeApplicable ?? 0} fee-based`,
+      icon: CreditCard, gradient: 'from-indigo-500 to-violet-600', to: '/regular-checkup',
+    },
   ];
 
   const actions = [
@@ -63,6 +75,7 @@ export function Home() {
     { label: 'New OPD Visit',    icon: Stethoscope, to: '/opd',      gradient: 'from-blue-500 to-indigo-600' },
     { label: 'Book Tests',       icon: TestTube,    to: '/tests',    gradient: 'from-violet-500 to-purple-600' },
     { label: 'Create Bill',      icon: Receipt,     to: '/billing',  gradient: 'from-emerald-500 to-teal-600' },
+    { label: 'Regular Checkup',  icon: ClipboardList, to: '/regular-checkup', gradient: 'from-sky-500 to-cyan-600' },
   ];
 
   return (
@@ -84,7 +97,7 @@ export function Home() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         {statCards.map(card => {
           const Icon = card.icon;
           return (
@@ -117,7 +130,7 @@ export function Home() {
       {/* Quick Actions */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <h2 className="font-bold text-slate-900 mb-4 text-sm uppercase tracking-wider">Quick Actions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {actions.map(action => {
             const Icon = action.icon;
             return (

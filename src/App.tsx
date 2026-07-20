@@ -9,6 +9,7 @@ import { TestBooking } from './pages/TestBooking';
 import { MedicineView } from './pages/MedicineView';
 import { Billing } from './pages/Billing';
 import { Returns } from './pages/Returns';
+import { RegularCheckup } from './pages/RegularCheckup';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="medicine" element={<MedicineView />} />
           <Route path="billing" element={<Billing />} />
           <Route path="returns" element={<Returns />} />
+          <Route path="regular-checkup" element={<RegularCheckup />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

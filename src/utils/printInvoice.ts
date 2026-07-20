@@ -1,7 +1,8 @@
 export interface InvoiceData {
   billId: string;
   createdAt: string;
-  patient: { name: string; patientId: string };
+  patient?: { name: string; patientId: string };
+  walkInCustomer?: { name: string; phone?: string };
   items: { name: string; quantity: number; unitPrice: number; total: number }[];
   subtotal: number;
   discount: number;
@@ -14,6 +15,8 @@ export interface InvoiceData {
 
 export function printInvoice(inv: InvoiceData) {
   const balance = Math.max(0, inv.totalAmount - inv.amountPaid);
+  const billToName = inv.patient ? inv.patient.name : (inv.walkInCustomer?.name || 'Walk-in Customer');
+  const billToSub = inv.patient ? `Patient ID: ${inv.patient.patientId}` : (inv.walkInCustomer?.phone ? `Phone: ${inv.walkInCustomer.phone}` : 'Walk-in Customer');
   const rows = inv.items.map((item, i) => `
     <tr>
       <td>${i + 1}</td>
@@ -121,8 +124,8 @@ export function printInvoice(inv: InvoiceData) {
   <div class="meta">
     <div class="meta-box">
       <div class="label">Bill To</div>
-      <div class="value">${inv.patient.name}</div>
-      <div class="sub">Patient ID: ${inv.patient.patientId}</div>
+      <div class="value">${billToName}</div>
+      <div class="sub">${billToSub}</div>
     </div>
     <div class="meta-box">
       <div class="label">Invoice Details</div>

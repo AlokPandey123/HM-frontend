@@ -7,6 +7,7 @@ import {
   Pill,
   Receipt,
   RotateCcw,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
@@ -22,7 +23,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/',         label: 'Dashboard',    icon: LayoutDashboard, exact: true },
   { to: '/patients', label: 'Patients',     icon: UserRound,   module: 'patients' },
-  { to: '/opd',      label: 'OPD Visits',   icon: Stethoscope, module: 'opd' },
+  { to: '/opd',             label: 'OPD Visits',      icon: Stethoscope,   module: 'opd'            },
+  { to: '/regular-checkup', label: 'Regular Checkup', icon: ClipboardList, module: 'regular_checkup' },
   { to: '/tests',    label: 'Test Booking', icon: FlaskConical,module: 'pathology' },
   { to: '/medicine', label: 'Medicines',    icon: Pill,        module: 'medicine_stock' },
   { to: '/billing',  label: 'Billing',      icon: Receipt,     module: 'billing' },

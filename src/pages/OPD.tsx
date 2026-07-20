@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Plus, Stethoscope, Clock, Loader2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import api from '../api/axios';
 import { Modal } from '../components/Modal';
+import { SearchSelect } from '../components/SearchSelect';
 
-interface OPD { _id: string; opdId: string; patient: { name: string; patientId: string }; doctor: string; visitDate: string; fees: number; paymentStatus: string; }
+interface OPD { _id: string; opdId: string; patient: { name: string; patientId: string }; doctor: { name: string; specialization?: string } | null; visitDate: string; fees: number; paymentStatus: string; }
 interface Patient { _id: string; name: string; patientId: string; }
+interface Doctor { _id: string; name: string; specialization?: string; }
 
 const statusConfig: Record<string, { label: string; class: string; icon: typeof CheckCircle }> = {
   paid:    { label: 'Paid',    class: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle },
@@ -12,7 +14,7 @@ const statusConfig: Record<string, { label: string; class: string; icon: typeof 
   partial: { label: 'Partial', class: 'bg-orange-50 text-orange-700 border-orange-200',   icon: AlertCircle },
 };
 
-const empty = { patient: '', doctor: 'Dr. ', visitDate: new Date().toISOString().split('T')[0], fees: '', paymentStatus: 'pending', paymentMode: 'cash', amountPaid: '', notes: '' };
+const empty = { patient: '', doctorId: '', doctorLabel: '', visitDate: new Date().toISOString().split('T')[0], fees: '', paymentStatus: 'pending', paymentMode: 'cash', amountPaid: '', notes: '' };
 
 export function OPD() {
   const [opds, setOpds] = useState<OPD[]>([]);
@@ -53,6 +55,12 @@ export function OPD() {
     return () => clearTimeout(t);
   }, [patientSearch]);
 
+  const searchDoctors = async (q: string) => {
+    const r = await api.get('/doctors', { params: { search: q, limit: 8 } });
+    const list: Doctor[] = r.data.data.doctors || [];
+    return list.map(d => ({ _id: d._id, label: `Dr. ${d.name}`, sublabel: d.specialization }));
+  };
+
   const closeModal = () => {
     setModal(false);
     setForm({ ...empty });
@@ -65,9 +73,10 @@ export function OPD() {
   const handleSave = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.patient) { alert('Please select a patient'); return; }
+    if (!form.doctorId) { alert('Please select a doctor'); return; }
     setSaving(true);
     try {
-      await api.post('/opd', { ...form, fees: Number(form.fees), amountPaid: Number(form.amountPaid) });
+      await api.post('/opd', { ...form, doctor: form.doctorId, fees: Number(form.fees), amountPaid: Number(form.amountPaid) });
       closeModal();
       load();
     } catch (err: unknown) {
@@ -126,7 +135,10 @@ export function OPD() {
                     <p className="font-semibold text-slate-800 text-sm">{o.patient?.name}</p>
                     <p className="text-xs text-slate-400">{o.patient?.patientId}</p>
                   </td>
-                  <td className="px-4 py-3.5 text-slate-600">{o.doctor}</td>
+                  <td className="px-4 py-3.5">
+                    <p className="text-sm text-slate-700">{o.doctor ? `Dr. ${o.doctor.name}` : '—'}</p>
+                    {o.doctor?.specialization && <p className="text-xs text-slate-400">{o.doctor.specialization}</p>}
+                  </td>
                   <td className="px-4 py-3.5 text-slate-500 text-xs">{new Date(o.visitDate).toLocaleDateString('en-IN')}</td>
                   <td className="px-4 py-3.5 font-bold text-slate-800">₹{o.fees}</td>
                   <td className="px-4 py-3.5">
@@ -193,11 +205,15 @@ export function OPD() {
               )}
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Doctor Name <span className="text-red-500">*</span></label>
-            <input value={form.doctor} onChange={(e) => f('doctor', e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-slate-50 focus:bg-white transition-colors" required />
-          </div>
+          <SearchSelect
+            label="Doctor"
+            value={form.doctorId}
+            displayValue={form.doctorLabel}
+            onSelect={(item) => setForm(prev => ({ ...prev, doctorId: item?._id ?? '', doctorLabel: item?.label ?? '' }))}
+            onSearch={searchDoctors}
+            placeholder="Search doctors…"
+            required
+          />
           <div>
             <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5">Visit Date <span className="text-red-500">*</span></label>
             <input type="date" value={form.visitDate} onChange={(e) => f('visitDate', e.target.value)}
